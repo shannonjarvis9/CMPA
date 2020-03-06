@@ -1,0 +1,203 @@
+%--------------------------------------------------------------------------
+% Question 1 : Generate Data
+%--------------------------------------------------------------------------
+
+V = linspace(-1.95, 0.7, 200);
+Is = 0.01e-12;
+Ib = 0.1e-12;
+Vb = 1.3;
+Gp = 0.1;
+
+%Separating each componenet of the current equation 
+ideal_diode = Is*(exp((1.2.*V)/0.025)-1);
+r_par = Gp.*V;
+breakdw = Ib*(exp((-1.2/0.025).*(V + Vb))-1);
+
+I = ideal_diode + r_par - breakdw; 
+
+%Random noise
+% Want positive and negative values [0,2, -0.2]
+% a + (b-a)*rand is unif val on intvl [a,b] with mean (b+a)/2
+noise = 0.2 + (-0.2-0.2)*rand(1,200);
+
+I_noise = I + I.*noise;
+
+%--------------------------------------------------------------------------
+% Plotting the data
+%--------------------------------------------------------------------------
+figure(1);
+subplot(4,2,1);
+plot(V, I);
+hold on;
+plot(V, I_noise);
+title('Plot of Current (linear)');
+xlabel('V');
+ylabel('I');
+legend('Current', 'Current with noise');
+hold off;
+
+subplot(4,2,2);
+semilogy(V, abs(I));
+hold on;
+semilogy(V, abs(I_noise));
+title('Plot of Current (semilogy)');
+xlabel('V');
+ylabel('|I|');
+legend('Current', 'Current with noise');
+hold off;
+
+%--------------------------------------------------------------------------
+% Question 2 : Poly Fitting
+%--------------------------------------------------------------------------
+I_fit_4 = polyfit(V, I, 4);
+I_fit_8 = polyfit(V, I, 8);
+
+I_fit_noise_4 = polyfit(V, I_noise, 4);
+I_fit_noise_8 = polyfit(V, I_noise, 8);
+
+
+
+subplot(4,2,3);
+plot(V, I);
+hold on;
+plot(V, polyval(I_fit_4, V));
+hold on;
+plot(V, polyval(I_fit_8, V));
+hold on;
+plot(V, I_noise);
+hold on;
+plot(V, polyval(I_fit_noise_4, V));
+hold on;
+plot(V, polyval(I_fit_noise_8, V));
+title('Plot of Polynomial Fit');
+xlabel('V (V)');
+ylabel('I (A)');
+legend('Current', '4th order fit of current','8th order fit of current', 'Current with noise', '4th order fit of current with noise','8th order fit of current with noise', 'Location','northwest');
+hold off;
+
+subplot(4,2,4);
+semilogy(V, abs(I));
+hold on;
+semilogy(V, abs(polyval(I_fit_4, V)));
+hold on;
+semilogy(V, abs(polyval(I_fit_8, V)));
+hold on;
+semilogy(V, abs(I_noise));
+hold on;
+semilogy(V, abs(polyval(I_fit_noise_4, V)));
+hold on;
+semilogy(V, abs(polyval(I_fit_noise_8, V)));
+title('Plot of Polynomial Filt (semilogy)');
+xlabel('V (V)');
+ylabel('|I| (A)');
+legend('Current', '4th order fit of current','8th order fit of current', 'Current with noise', '4th order fit of current with noise','8th order fit of current with noise', 'Location','northwest');
+hold off;
+
+%--------------------------------------------------------------------------
+% Question 3 : Curve Fitting
+%--------------------------------------------------------------------------
+fo = fittype('A.*(exp((1.2.*x)/0.025)-1) + B.*x - C*(exp((-1.2/0.025).*(x + D))-1)');
+%fo = fittype('A.*(exp((1.2.*x)/0.025)-1) + B.*x + C*(exp((-1.2/0.025).*(x + D))-1)');
+
+%--------------------------------------------------------------------------
+% Question 3 a : Fit A and C
+%--------------------------------------------------------------------------
+% B = Gp = 0.1
+% D = Vb = 1.3
+
+fo_a = fittype('A.*(exp((1.2.*x)/0.025)-1) + 0.1.*x - C*(exp((-1.2/0.025).*(x + 1.3))-1)');
+
+
+ff_a = fit(transpose(V),transpose(I),fo_a);
+If_a = transpose(ff_a(V));
+
+%--------------------------------------------------------------------------
+% Question 3 b : Fit A, B and C
+%--------------------------------------------------------------------------
+% D = Vb = 1.3
+fo_b = fittype('A.*(exp((1.2.*x)/0.025)-1) + B.*x - C*(exp((-1.2/0.025).*(x + 1.3))-1)');
+
+ff_b = fit(transpose(V),transpose(I),fo_b);
+If_b = transpose(ff_b(V));
+
+%--------------------------------------------------------------------------
+% Question 3 c : Fit A, B, C and D
+%--------------------------------------------------------------------------
+fo_c = fittype('A.*(exp((1.2.*x)/0.025)-1) + B.*x - C*(exp((-1.2/0.025).*(x + D))-1)');
+
+ff_c = fit(transpose(V),transpose(I),fo_c);
+If_c = transpose(ff_c(V));
+
+
+%--------------------------------------------------------------------------
+% Question 3 : Plot
+%--------------------------------------------------------------------------
+subplot(4,2,5);
+plot(V, I);
+hold on;
+plot(V, If_a);
+hold on;
+plot(V, If_b);
+hold on;
+plot(V, If_c);
+title('Q3: Plot of Nonlinear Fitting');
+xlabel('V (V)');
+ylabel('I (A)');
+legend('Current', 'Fit with 2 unknown','Fit with 3 unknown','Fit with 4 unknown', 'Location','northwest');
+hold off;
+
+subplot(4,2,6);
+semilogy(V, abs(I));
+hold on;
+semilogy(V, abs(If_a));
+hold on;
+semilogy(V, abs(If_b));
+hold on;
+semilogy(V, abs(If_c));
+title('Q3: Plot of Nonlinear Fitting (semilogy)');
+xlabel('V (V)');
+ylabel('|I| (A)');
+legend('Current', 'Fit with 2 unknown','Fit with 3 unknown','Fit with 4 unknown', 'Location','northwest');
+hold off;
+
+
+
+%-------------------------------------------------------------------------
+% Question 4 : Neural Network Model
+%--------------------------------------------------------------------------
+inputs = V;
+targets = I;
+hiddenLayerSize = 10;
+net = fitnet(hiddenLayerSize); 
+net.divideParam.trainRatio = 70/100; 
+net.divideParam.valRatio = 15/100; 
+net.divideParam.testRatio = 15/100; 
+[net,tr] = train(net,inputs,targets);
+outputs = net(inputs);
+errors = gsubtract(outputs,targets); 
+performance = perform(net,targets,outputs); 
+view(net);
+Inn = outputs;
+
+
+subplot(4,2,7);
+plot(V, I);
+hold on;
+plot(V, Inn);
+title('Q4: Plot of Neural Network');
+xlabel('V (V)');
+ylabel('I (A)');
+legend('Current', 'Neural Net','Location','northwest');
+hold off;
+
+subplot(4,2,8);
+semilogy(V, abs(I));
+hold on;
+semilogy(V, abs(Inn));
+title('Q4: Plot of Neural Network (semilogy)');
+xlabel('V (V)');
+ylabel('|I| (A)');
+legend('Current', 'Neural Net','Location','northwest');
+hold off;
+
+
